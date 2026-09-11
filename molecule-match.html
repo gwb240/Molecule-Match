@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Molecule Match</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0f1712;
+    --panel: #16211a;
+    --panel-2: #1c2a21;
+    --border: #2b3a30;
+    --text: #eee9df;
+    --text-dim: #a7b3a6;
+
+    --carb: #d9a441;
+    --carb-dim: #4a3d24;
+    --protein: #c1443c;
+    --protein-dim: #452622;
+    --lipid: #5aa06a;
+    --lipid-dim: #24382a;
+    --nucleic: #6c86c9;
+    --nucleic-dim: #26304a;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100%;
+  }
+
+  body{
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(238,233,223,0.055) 1px, transparent 0);
+    background-size: 26px 26px;
+  }
+
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  header{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+  }
+
+  .title-block h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 30px;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.2px;
+  }
+
+  .title-block p{
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  .stats{
+    display:flex;
+    gap: 18px;
+    text-align: right;
+  }
+
+  .stat{ line-height: 1.15; }
+  .stat .num{ font-size: 22px; font-weight: 700; }
+  .stat .label{ font-size: 11px; color: var(--text-dim); }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 34px 28px;
+    min-height: 168px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.25s ease;
+  }
+
+  .card.correct{ border-color: var(--lipid); }
+  .card.incorrect{ border-color: var(--protein); }
+
+  .clue{
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 21px;
+    line-height: 1.45;
+    max-width: 460px;
+  }
+
+  .feedback{
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 460px;
+  }
+
+  .feedback.show{ display: flex; }
+  .feedback .verdict{
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .feedback .verdict.right{ color: var(--lipid); }
+  .feedback .verdict.wrong{ color: var(--protein); }
+  .feedback .explain{
+    font-size: 14.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .options{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .opt{
+    border-radius: 8px;
+    padding: 16px 14px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: var(--panel-2);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform 0.12s ease, background 0.15s ease;
+  }
+
+  .opt:hover:not(:disabled){ transform: translateY(-1px); }
+  .opt:disabled{ cursor: default; }
+
+  .dot{
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .opt[data-cat="carb"] .dot{ background: var(--carb); }
+  .opt[data-cat="protein"] .dot{ background: var(--protein); }
+  .opt[data-cat="lipid"] .dot{ background: var(--lipid); }
+  .opt[data-cat="nucleic"] .dot{ background: var(--nucleic); }
+
+  .opt[data-cat="carb"]:hover:not(:disabled){ background: var(--carb-dim); }
+  .opt[data-cat="protein"]:hover:not(:disabled){ background: var(--protein-dim); }
+  .opt[data-cat="lipid"]:hover:not(:disabled){ background: var(--lipid-dim); }
+  .opt[data-cat="nucleic"]:hover:not(:disabled){ background: var(--nucleic-dim); }
+
+  .opt.picked-right{ background: var(--lipid-dim); border-color: var(--lipid); }
+  .opt.picked-wrong{ background: var(--protein-dim); border-color: var(--protein); }
+  .opt.reveal-right{ border-color: var(--lipid); }
+
+  .next-row{
+    display: flex;
+    justify-content: center;
+  }
+
+  .next-btn{
+    display: none;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 26px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .next-btn.show{ display: inline-block; }
+
+  footer{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  .reset{
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: 'Inter', sans-serif;
+    padding: 0;
+  }
+
+  @media (max-width: 420px){
+    .options{ grid-template-columns: 1fr; }
+    .clue{ font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="title-block">
+      <h1>Molecule Match</h1>
+      <p>Carbohydrates &middot; Proteins &middot; Lipids &middot; Nucleic Acids</p>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="num" id="scoreNum">0</div>
+        <div class="label">Score</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="streakNum">0</div>
+        <div class="label">Streak</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="card" id="card">
+    <div class="clue" id="clueText"></div>
+    <div class="feedback" id="feedback">
+      <div class="verdict" id="verdictText"></div>
+      <div class="explain" id="explainText"></div>
+    </div>
+  </div>
+
+  <div class="options" id="options"></div>
+
+  <div class="next-row">
+    <button class="next-btn" id="nextBtn">Next clue</button>
+  </div>
+
+  <footer>
+    <span id="progressText">Question 1</span>
+    <button class="reset" id="resetBtn">Reset game</button>
+  </footer>
+</div>
+
+<script>
+  const CATS = {
+    carb:    { label: "Carbohydrate", color: "var(--carb)" },
+    protein: { label: "Protein",      color: "var(--protein)" },
+    lipid:   { label: "Lipid",        color: "var(--lipid)" },
+    nucleic: { label: "Nucleic Acid", color: "var(--nucleic)" }
+  };
+
+  const CLUES = [
+    { cat: "carb", text: "Built from monosaccharides linked together by glycosidic bonds.", why: "Glycosidic bonds are the signature linkage joining sugar units into disaccharides and polysaccharides." },
+    { cat: "carb", text: "Elements are present in roughly a 1:2:1 ratio of carbon, hydrogen, and oxygen.", why: "The (CH2O)n formula pattern is a classic carbohydrate fingerprint." },
+    { cat: "carb", text: "Starch and glycogen act as short- to medium-term energy stores in plants and animals.", why: "Both are branched glucose polymers built for quick energy mobilization." },
+    { cat: "carb", text: "Cellulose gives rigidity and structure to plant cell walls.", why: "Cellulose's tightly packed glucose chains form strong structural fibers." },
+    { cat: "carb", text: "Chitin forms the tough exoskeleton of insects and crustaceans.", why: "Chitin is a structural polysaccharide, a close cousin of cellulose." },
+    { cat: "carb", text: "Glucose is the primary fuel molecule broken down during cellular respiration.", why: "Glycolysis specifically splits this simple sugar to begin energy extraction." },
+
+    { cat: "protein", text: "Built from amino acids joined together by peptide bonds.", why: "Peptide bonds link the amino and carboxyl groups of adjacent amino acids." },
+    { cat: "protein", text: "Folds into secondary, tertiary, and sometimes quaternary structures.", why: "This structural hierarchy is unique to proteins and determines their function." },
+    { cat: "protein", text: "Acts as an enzyme, catalyzing biochemical reactions in the cell.", why: "Enzymes are proteins whose folded shape creates an active site for catalysis." },
+    { cat: "protein", text: "Functions as an antibody, helping the immune system recognize invaders.", why: "Antibodies are specialized proteins shaped to bind specific antigens." },
+    { cat: "protein", text: "Keratin and collagen provide structural support in skin, hair, and connective tissue.", why: "These are fibrous structural proteins rather than globular, functional ones." },
+    { cat: "protein", text: "Hemoglobin binds and transports oxygen through the bloodstream.", why: "Hemoglobin's quaternary structure lets it carry oxygen efficiently in red blood cells." },
+
+    { cat: "lipid", text: "Composed mainly of glycerol bonded to fatty acid chains.", why: "This glycerol-plus-fatty-acid backbone defines triglycerides, a major lipid class." },
+    { cat: "lipid", text: "Nonpolar and generally insoluble in water.", why: "Long hydrocarbon tails make most lipids hydrophobic." },
+    { cat: "lipid", text: "Phospholipids arrange into a bilayer that forms cell membranes.", why: "Their polar heads and nonpolar tails self-assemble into the membrane bilayer." },
+    { cat: "lipid", text: "Triglycerides stored in adipose tissue serve as long-term energy reserves.", why: "Fats pack more energy per gram than carbohydrates, ideal for long-term storage." },
+    { cat: "lipid", text: "Steroid hormones such as testosterone and estrogen share this molecule's backbone.", why: "Steroids are lipids built on a four-ring carbon skeleton." },
+    { cat: "lipid", text: "Waxes form waterproof coatings on leaves, feathers, and fur.", why: "Wax esters are highly hydrophobic lipids suited to water-repelling coatings." },
+
+    { cat: "nucleic", text: "Made of nucleotide monomers, each containing a sugar, a phosphate, and a nitrogenous base.", why: "Nucleotides are the defining building block of nucleic acids." },
+    { cat: "nucleic", text: "Stores hereditary genetic information in a double helix structure.", why: "This describes DNA, the cell's long-term genetic archive." },
+    { cat: "nucleic", text: "Carries copied instructions from the genetic material to the ribosomes.", why: "This is the messenger role played by RNA during protein synthesis." },
+    { cat: "nucleic", text: "A nucleotide derivative that serves as the cell's main energy currency.", why: "ATP is built from a nucleotide, even though its main job is energy transfer, not coding." },
+    { cat: "nucleic", text: "Bases pair in a complementary fashion, such as A with T and G with C.", why: "Complementary base pairing underlies DNA replication and the double helix." },
+    { cat: "nucleic", text: "Concentrated in the nucleus, with additional copies found in mitochondria.", why: "Both organelles house genetic material, a hallmark of nucleic acids." }
+  ];
+
+  let deck = [];
+  let current = null;
+  let score = 0;
+  let streak = 0;
+  let questionNum = 1;
+  let answered = false;
+
+  function shuffledDeck(){
+    const d = [...CLUES];
+    for(let i = d.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [d[i], d[j]] = [d[j], d[i]];
+    }
+    return d;
+  }
+
+  const optionsEl = document.getElementById('options');
+  const clueTextEl = document.getElementById('clueText');
+  const feedbackEl = document.getElementById('feedback');
+  const verdictEl = document.getElementById('verdictText');
+  const explainEl = document.getElementById('explainText');
+  const cardEl = document.getElementById('card');
+  const nextBtn = document.getElementById('nextBtn');
+  const scoreNum = document.getElementById('scoreNum');
+  const streakNum = document.getElementById('streakNum');
+  const progressText = document.getElementById('progressText');
+  const resetBtn = document.getElementById('resetBtn');
+
+  function buildOptions(){
+    optionsEl.innerHTML = '';
+    Object.keys(CATS).forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'opt';
+      btn.dataset.cat = key;
+      btn.innerHTML = `<span class="dot"></span>${CATS[key].label}`;
+      btn.addEventListener('click', () => handleAnswer(key, btn));
+      optionsEl.appendChild(btn);
+    });
+  }
+
+  function nextQuestion(){
+    if(deck.length === 0){
+      deck = shuffledDeck();
+    }
+    current = deck.pop();
+    answered = false;
+
+    clueTextEl.style.display = 'block';
+    feedbackEl.classList.remove('show');
+    cardEl.classList.remove('correct', 'incorrect');
+    clueTextEl.textContent = current.text;
+
+    buildOptions();
+    nextBtn.classList.remove('show');
+    progressText.textContent = `Question ${questionNum}`;
+  }
+
+  function handleAnswer(pickedKey, btnEl){
+    if(answered) return;
+    answered = true;
+    questionNum++;
+
+    const isRight = pickedKey === current.cat;
+    const allOpts = optionsEl.querySelectorAll('.opt');
+    allOpts.forEach(o => o.disabled = true);
+
+    if(isRight){
+      score++;
+      streak++;
+      btnEl.classList.add('picked-right');
+      cardEl.classList.add('correct');
+      verdictEl.textContent = 'Correct';
+      verdictEl.className = 'verdict right';
+    } else {
+      streak = 0;
+      btnEl.classList.add('picked-wrong');
+      cardEl.classList.add('incorrect');
+      const correctBtn = optionsEl.querySelector(`[data-cat="${current.cat}"]`);
+      if(correctBtn) correctBtn.classList.add('reveal-right');
+      verdictEl.textContent = `Not quite — it's a ${CATS[current.cat].label.toLowerCase()}`;
+      verdictEl.className = 'verdict wrong';
+    }
+
+    explainEl.textContent = current.why;
+    clueTextEl.style.display = 'none';
+    feedbackEl.classList.add('show');
+
+    scoreNum.textContent = score;
+    streakNum.textContent = streak;
+
+    nextBtn.classList.add('show');
+  }
+
+  nextBtn.addEventListener('click', nextQuestion);
+
+  resetBtn.addEventListener('click', () => {
+    score = 0;
+    streak = 0;
+    questionNum = 1;
+    deck = [];
+    scoreNum.textContent = 0;
+    streakNum.textContent = 0;
+    nextQuestion();
+  });
+
+  nextQuestion();
+</script>
+
+</body>
+</html>
